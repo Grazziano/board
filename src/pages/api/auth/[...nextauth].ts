@@ -11,6 +11,31 @@ export const authOptions = {
     }),
     // ...add more providers here
   ],
+  callbacks: {
+    async session({ session, token, user }) {
+      try {
+        return {
+          ...session,
+          id: token.sub,
+        };
+      } catch (error) {
+        return {
+          ...session,
+          id: null,
+        };
+      }
+    },
+    async signIn(user, account, profile) {
+      const { email } = user;
+
+      try {
+        return true;
+      } catch (error) {
+        console.log('DEU ERRO: ', error);
+        return false;
+      }
+    },
+  },
 };
 
 export default NextAuth(authOptions);
