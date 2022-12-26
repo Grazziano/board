@@ -6,19 +6,29 @@ import { FiCalendar, FiClock, FiEdit2, FiPlus, FiTrash } from 'react-icons/fi';
 import SupportButton from '../../components/SupportButton';
 import { FormEvent, useState } from 'react';
 import firebase from '../../services/firebaseConnection';
-import { format } from 'path';
 import Link from 'next/link';
+import { format } from 'date-fns';
+
+type TaskList = {
+  id: string;
+  created: string | Date;
+  createdFormated: string;
+  tarefa: string;
+  userId: string;
+  nome: string;
+};
 
 interface BoardProps {
   user: {
     id: string;
     nome: string;
   };
+  data: string;
 }
 
-export default function Board({ user }: BoardProps) {
+export default function Board({ user, data }: BoardProps) {
   const [input, setInput] = useState('');
-  const [taskList, setTaskList] = useState([]);
+  const [taskList, setTaskList] = useState<TaskList[]>(JSON.parse(data));
 
   async function handleAddTask(event: FormEvent) {
     event.preventDefault();
@@ -37,7 +47,7 @@ export default function Board({ user }: BoardProps) {
         userId: user.id,
         nome: user.nome,
       })
-      .them((doc) => {
+      .then((doc) => {
         console.log('Cadastrado com sucesso!');
         let data = {
           id: doc.id,
@@ -74,7 +84,10 @@ export default function Board({ user }: BoardProps) {
           </button>
         </form>
 
-        <h1>Voce tem duas tarefas!</h1>
+        <h1>
+          Voce tem {taskList.length}{' '}
+          {taskList.length === 1 ? 'tarefa' : 'tarefas'}!
+        </h1>
 
         <section>
           {taskList.map((task) => (
@@ -134,6 +147,25 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
     };
   }
 
+  const tasks = await firebase
+    .firestore()
+    .collection('tarefas')
+    .where('userId', '==', session?.id)
+    .orderBy('created', 'asc')
+    .get();
+
+  const data = JSON.stringify(
+    tasks.docs.map((u) => {
+      return {
+        id: u.id,
+        createdFormated: format(u.data().created.toDate(), 'dd MMMM yyyy'),
+        ...u.data(),
+      };
+    })
+  );
+
+  // console.log(data);
+
   const user = {
     nome: session.user?.name,
     id: session?.id,
@@ -144,6 +176,7 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
   return {
     props: {
       user,
+      data,
     },
   };
 };
