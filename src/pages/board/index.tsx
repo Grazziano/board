@@ -4,16 +4,59 @@ import { getSession } from 'next-auth/react';
 import styles from './styles.module.scss';
 import { FiCalendar, FiClock, FiEdit2, FiPlus, FiTrash } from 'react-icons/fi';
 import SupportButton from '../../components/SupportButton';
+import { FormEvent, useState } from 'react';
+import firebase from '../../services/firebaseConnection';
 
-export default function Board() {
+interface BoardProps {
+  user: {
+    id: string;
+    nome: string;
+  };
+}
+
+export default function Board({ user }: BoardProps) {
+  // console.log(user.nome);
+
+  const [input, setInput] = useState('');
+
+  async function handleAddTask(event: FormEvent) {
+    event.preventDefault();
+
+    if (input === '') {
+      alert('Preencha alguma tarefa!');
+      return;
+    }
+
+    await firebase
+      .firestore()
+      .collection('tarefas')
+      .add({
+        created: new Date(),
+        tarefa: input,
+        userId: user.id,
+        nome: user.nome,
+      })
+      .them((doc) => {
+        console.log('Cadastrado com sucesso!');
+      })
+      .catch((err) => {
+        console.log('Erro: ', err);
+      });
+  }
+
   return (
     <>
       <Head>
         <title>Minhas tarefas - Board</title>
       </Head>
       <main className={styles.container}>
-        <form>
-          <input type="text" placeholder="Digite sua tarefa..." />
+        <form onSubmit={handleAddTask}>
+          <input
+            type="text"
+            placeholder="Digite sua tarefa..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
           <button type="submit">
             <FiPlus size={25} color="#17181F" />
           </button>
@@ -69,6 +112,7 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
   console.log(session);
 
   if (!session?.id) {
+    // Se o user não estiver logado redireciona
     return {
       redirect: {
         destination: '/',
@@ -77,9 +121,16 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
     };
   }
 
+  const user = {
+    nome: session.user?.name,
+    id: session?.id,
+  };
+
   // console.log(session.user);
 
   return {
-    props: {},
+    props: {
+      user,
+    },
   };
 };
