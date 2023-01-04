@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import GithubProvider from 'next-auth/providers/github';
+import firebase from '../../../services/firebaseConnection';
 
 export const authOptions = {
   // Configure one or more authentication providers
@@ -14,14 +15,31 @@ export const authOptions = {
   callbacks: {
     async session({ session, token, user }) {
       try {
+        const lastDonate = await firebase
+          .firestore()
+          .collection('uers')
+          .doc(String(token.sub))
+          .get()
+          .then((snapshot) => {
+            if (snapshot.exists) {
+              return snapshot.data.lastDonate.toDate();
+            } else {
+              return null; // Esse user não é apoiador
+            }
+          });
+
         return {
           ...session,
           id: token.sub,
+          vip: lastDonate ? true : false,
+          lastDonate: lastDonate,
         };
       } catch (error) {
         return {
           ...session,
           id: null,
+          vip: false,
+          lastDonate: null,
         };
       }
     },
